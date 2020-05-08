@@ -3,6 +3,10 @@ package oop20_ca6_jiaxin_jiang;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
+/**
+ *
+ * @author Jiaxin Jiang, D00217246
+ */
 public class TollEvent
 {
 

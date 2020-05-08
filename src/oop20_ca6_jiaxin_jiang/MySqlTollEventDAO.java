@@ -9,6 +9,10 @@ import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ *
+ * @author Jiaxin Jiang, D00217246
+ */
 public class MySqlTollEventDAO extends MySqlDAO implements TollEventDAOInterface
 {
 

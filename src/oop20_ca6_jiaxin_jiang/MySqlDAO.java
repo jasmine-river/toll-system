@@ -4,6 +4,10 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
+/**
+ *
+ * @author Jiaxin Jiang, D00217246
+ */
 public class MySqlDAO
 {
 

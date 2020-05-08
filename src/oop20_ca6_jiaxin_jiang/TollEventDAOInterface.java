@@ -2,6 +2,10 @@ package oop20_ca6_jiaxin_jiang;
 
 import java.util.Set;
 
+/**
+ *
+ * @author Jiaxin Jiang, D00217246
+ */
 public interface TollEventDAOInterface
 {
 
