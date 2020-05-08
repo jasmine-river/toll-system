@@ -30,8 +30,8 @@ public class Server
 {
 
     private final TollEventDAOInterface ITollEventDAO = new MySqlTollEventDAO();
-    private final List<String> invalidRegList = new ArrayList();
     private final Set<String> regSet = loadRegFromFile();
+    private final List<String> invalidRegList = new ArrayList();
 
     public static void main(String[] args)
     {
