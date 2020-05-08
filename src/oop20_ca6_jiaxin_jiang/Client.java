@@ -14,13 +14,17 @@ import java.util.Scanner;
 import java.util.Set;
 import javax.json.Json;
 import javax.json.JsonArray;
-import javax.json.JsonArrayBuilder;
 import javax.json.JsonBuilderFactory;
 import javax.json.JsonObject;
 import javax.json.JsonReader;
 
+/**
+ *
+ * @author Jiaxin Jiang, D00217246
+ */
 public class Client
 {
+
     private final Scanner kb = new Scanner(System.in);
 
     public static void main(String[] args)
@@ -29,19 +33,18 @@ public class Client
         client.start();
     }
 
-    public void start()
+    private void start()
     {
-       
         boolean quit = false;
         int option;
-        
-        Set<String> vehicleRegSet=getRegSet();
+
+        // A set of registration numbers, received from Server
+        Set<String> regSet = getRegSet();
 
         ArrayList<String> mainMenu = new ArrayList();
-        mainMenu.add("HeartBeat");
-        mainMenu.add("ProcessTollEvents");
-        mainMenu.add("CloseSession");
-
+        mainMenu.add("Heartbeat");
+        mainMenu.add("Process Toll Events");
+        mainMenu.add("Close Session");
 
         do
         {
@@ -51,15 +54,15 @@ public class Client
                 System.out.print("\nChoose One Option: ");
                 option = kb.nextInt();
                 kb.nextLine();
-                System.out.println("\nYour Option Is: " + mainMenu.get(option-1) + "\n");
+                System.out.println("\nYour Option Is: " + mainMenu.get(option - 1) + "\n");
                 switch (option)
                 {
                     case 1:
-                        heartBeat();
+                        heartbeat();
                         backToMenu();
                         break;
                     case 2:
-                        processTollEvents(vehicleRegSet);
+                        processTollEvents(regSet);
                         backToMenu();
                         break;
                     case 3:
@@ -83,50 +86,62 @@ public class Client
                 backToMenu();
             }
         } while (!quit);
-        
     }
-    
+
+    private void printMenu(String menuHeading, ArrayList<String> menu)
+    {
+        System.out.println(menuHeading);
+        for (int i = 0; i < menu.size(); i++)
+        {
+            System.out.println((i + 1) + ". " + menu.get(i));
+        }
+    }
+
+    private void backToMenu()
+    {
+        System.out.print("\nPress 'enter' to return to menu ");
+        String temp = kb.nextLine();
+    }
+
+    // Get a set of registration numbers from Server
     private Set<String> getRegSet()
     {
-        Set<String> regSet=new HashSet();
+        Set<String> regSet = new HashSet();
         try
         {
-            Socket socket = new Socket("localhost", 50000);
-            
-            JsonBuilderFactory factory = Json.createBuilderFactory(null);
-
-            JsonObject jsonRootObject
-                    = Json.createObjectBuilder()
-                            .add("PacketType", "GetRegisteredVehicles")
-                            .build();
-
-            String message = jsonRootObject.toString();
-            
-            
-            OutputStream os = socket.getOutputStream();
-
-            PrintWriter socketWriter = new PrintWriter(os, true);// true=> auto flush buffers
-            socketWriter.println(message);  // write command to socket
-            
-              
-            JsonReader reader = Json.createReader(socket.getInputStream());
-            JsonObject object = reader.readObject();
-            
-            String packetType = object.getString("PacketType");
-            System.out.println("PacketType: " + packetType);
-            System.out.println();
-             
-            JsonArray regArray = object.getJsonArray("Vehicles");
-             
-            for (int i = 0; i < regArray.size(); i++)
+            try (Socket socket = new Socket("localhost", 50000))
             {
-                String reg = regArray.getString(i);
-                regSet.add(reg);
-            }          
-              
-             socketWriter.close();
-             socket.close();
-             
+                JsonBuilderFactory factory = Json.createBuilderFactory(null);
+
+                JsonObject jsonRootObject
+                        = Json.createObjectBuilder()
+                                .add("PacketType", "GetRegisteredVehicles")
+                                .build();
+
+                String message = jsonRootObject.toString();
+
+                OutputStream os = socket.getOutputStream();
+
+                try (PrintWriter socketWriter = new PrintWriter(os, true))
+                {
+                    socketWriter.println(message);
+
+                    JsonReader reader = Json.createReader(socket.getInputStream());
+                    JsonObject object = reader.readObject();
+
+                    String packetType = object.getString("PacketType");
+                    System.out.println(packetType);
+
+                    JsonArray regArray = object.getJsonArray("Vehicles");
+
+                    // Add registrations from JSON array to local set
+                    for (int i = 0; i < regArray.size(); i++)
+                    {
+                        String reg = regArray.getString(i);
+                        regSet.add(reg);
+                    }
+                }
+            }
         }
         catch (IOException e)
         {
@@ -134,53 +149,53 @@ public class Client
         }
         return regSet;
     }
-    
-    private void heartBeat()
+
+    // Get Heartbeat response from Server
+    private void heartbeat()
     {
         try
         {
-            Socket socket = new Socket("localhost", 50000);
-            
-            JsonBuilderFactory factory = Json.createBuilderFactory(null);
+            try (Socket socket = new Socket("localhost", 50000))
+            {
+                JsonBuilderFactory factory = Json.createBuilderFactory(null);
 
-            JsonObject jsonRootObject
-                    = Json.createObjectBuilder()
-                            .add("PacketType", "Heartbeat")
-                            .build();
+                JsonObject jsonRootObject
+                        = Json.createObjectBuilder()
+                                .add("PacketType", "Heartbeat")
+                                .build();
 
-            String message = jsonRootObject.toString();
-            
-            
-            OutputStream os = socket.getOutputStream();
+                String message = jsonRootObject.toString();
 
-            PrintWriter socketWriter = new PrintWriter(os, true);// true=> auto flush buffers
-            socketWriter.println(message);  // write command to socket
-            
-            
-            JsonReader reader = Json.createReader(socket.getInputStream());
-            JsonObject object = reader.readObject();
-            
-            String packetType = object.getString("PacketType");
-            System.out.println("PacketType: " + packetType);
-             
-             socketWriter.close();
-             socket.close();
+                OutputStream os = socket.getOutputStream();
+
+                try (PrintWriter socketWriter = new PrintWriter(os, true))
+                {
+                    socketWriter.println(message);
+
+                    JsonReader reader = Json.createReader(socket.getInputStream());
+                    JsonObject object = reader.readObject();
+
+                    String packetType = object.getString("PacketType");
+                    System.out.println(packetType);
+                }
+            }
         }
         catch (IOException e)
         {
             System.out.println("Client message: IOException: " + e);
         }
-        
     }
-    
-    private void processTollEvents(Set<String> regList)
+
+    // Read in toll events from Toll-Events.csv file, and process them one by one
+    private void processTollEvents(Set<String> regSet)
     {
         try (Scanner in = new Scanner(new File("data/Toll-Events.csv")))
         {
             in.useDelimiter("[;\n\r]+");
-            ArrayList<TollEvent> tollEventList = new ArrayList();
+            List<TollEvent> tollEventList = new ArrayList();
             boolean success;
 
+            // Read in toll events and store them locally in a list
             while (in.hasNext() && in.hasNextLine())
             {
                 String reg = in.next();
@@ -190,16 +205,20 @@ public class Client
                 TollEvent t = new TollEvent(reg, imageId, timestamp);
                 tollEventList.add(t);
             }
-            
-            int i=0;
-            while(i<tollEventList.size())
+
+            // Process toll events one by one from the list
+            int i = 0;
+            while (i < tollEventList.size())
             {
                 TollEvent t = tollEventList.get(i);
-                if (regList.contains(t.getReg()))
+                // Check if toll event registration is valid, which means it can be found in the set of registrations
+                if (regSet.contains(t.getReg()))
                 {
-                    success=regValidEvent(t.getReg(),t.getImageId(),t.getTimestamp());
-                    if(success)
+                    // If so, request to register the valid toll event
+                    success = regValidEvent(t.getReg(), t.getImageId(), t.getTimestamp());
+                    if (success)
                     {
+                        // Once successfully processed, the locally stored event can be deleted
                         tollEventList.remove(t);
                     }
                     else
@@ -209,9 +228,11 @@ public class Client
                 }
                 else
                 {
-                    success=regInvalidEvent(t.getReg(),t.getImageId(),t.getTimestamp());
-                    if(success)
+                    // If not, request to register the invalid toll event
+                    success = regInvalidEvent(t.getReg(), t.getImageId(), t.getTimestamp());
+                    if (success)
                     {
+                        // Once successfully processed, the locally stored event can be deleted
                         tollEventList.remove(t);
                     }
                     else
@@ -226,47 +247,46 @@ public class Client
             System.out.println("Toll-Events.csv file not found");
         }
     }
-    
-    private boolean regValidEvent(String reg,long imageId,String timestamp)
+
+    // Request the Server to register valid toll event
+    private boolean regValidEvent(String reg, long imageId, String timestamp)
     {
-        boolean success=false;
+        boolean success = false;
         try
         {
-            Socket socket = new Socket("localhost", 50000);
-            
-            JsonBuilderFactory factory = Json.createBuilderFactory(null);
-
-            JsonObject jsonRootObject
-                    = Json.createObjectBuilder()
-                            .add("PacketType", "RegisterValidTollEvent")
-                            .add("TollBoothID", "TB_M50")
-                            .add("Vehicle Registration", reg)
-                            .add("Vehicle Image ID", imageId)
-                            .add("LocalDateTime", timestamp)
-                            .build();
-
-            String message = jsonRootObject.toString();
-            
-            
-            OutputStream os = socket.getOutputStream();
-
-            PrintWriter socketWriter = new PrintWriter(os, true);// true=> auto flush buffers
-            socketWriter.println(message);  // write command to socket
-            
-              
-            JsonReader reader = Json.createReader(socket.getInputStream());
-            JsonObject object = reader.readObject();
-            
-            String packetType = object.getString("PacketType");
-            System.out.println("PacketType: " + packetType);
-            
-            if(packetType.equals("RegisteredValidTollEvent"))
+            try (Socket socket = new Socket("localhost", 50000))
             {
-                success=true;
+                JsonBuilderFactory factory = Json.createBuilderFactory(null);
+
+                JsonObject jsonRootObject
+                        = Json.createObjectBuilder()
+                                .add("PacketType", "RegisterValidTollEvent")
+                                .add("TollBoothID", "TB_M50")
+                                .add("Vehicle Registration", reg)
+                                .add("Vehicle Image ID", imageId)
+                                .add("LocalDateTime", timestamp)
+                                .build();
+
+                String message = jsonRootObject.toString();
+
+                OutputStream os = socket.getOutputStream();
+
+                try (PrintWriter socketWriter = new PrintWriter(os, true))
+                {
+                    socketWriter.println(message);
+
+                    JsonReader reader = Json.createReader(socket.getInputStream());
+                    JsonObject object = reader.readObject();
+
+                    String packetType = object.getString("PacketType");
+                    System.out.println(packetType);
+
+                    if (packetType.equals("RegisteredValidTollEvent"))
+                    {
+                        success = true;
+                    }
+                }
             }
-          
-             socketWriter.close();
-             socket.close();
         }
         catch (IOException e)
         {
@@ -274,47 +294,46 @@ public class Client
         }
         return success;
     }
-    
-    private boolean regInvalidEvent(String reg,long imageId,String timestamp)
+
+    // Request the Server to register invalid toll event
+    private boolean regInvalidEvent(String reg, long imageId, String timestamp)
     {
-        boolean success=false;
+        boolean success = false;
         try
         {
-            Socket socket = new Socket("localhost", 50000);
-            
-            JsonBuilderFactory factory = Json.createBuilderFactory(null);
-
-            JsonObject jsonRootObject
-                    = Json.createObjectBuilder()
-                            .add("PacketType", "RegisterInvalidTollEvent")
-                            .add("TollBoothID", "TB_M50")
-                            .add("Vehicle Registration", reg)
-                            .add("Vehicle Image ID", imageId)
-                            .add("LocalDateTime", timestamp)
-                            .build();
-
-            String message = jsonRootObject.toString();
-            
-            
-            OutputStream os = socket.getOutputStream();
-
-            PrintWriter socketWriter = new PrintWriter(os, true);// true=> auto flush buffers
-            socketWriter.println(message);  // write command to socket
-            
-              
-            JsonReader reader = Json.createReader(socket.getInputStream());
-            JsonObject object = reader.readObject();
-            
-            String packetType = object.getString("PacketType");
-            System.out.println("PacketType: " + packetType);
-            
-            if(packetType.equals("RegisteredInvalidTollEvent"))
+            try (Socket socket = new Socket("localhost", 50000))
             {
-                success=true;
+                JsonBuilderFactory factory = Json.createBuilderFactory(null);
+
+                JsonObject jsonRootObject
+                        = Json.createObjectBuilder()
+                                .add("PacketType", "RegisterInvalidTollEvent")
+                                .add("TollBoothID", "TB_M50")
+                                .add("Vehicle Registration", reg)
+                                .add("Vehicle Image ID", imageId)
+                                .add("LocalDateTime", timestamp)
+                                .build();
+
+                String message = jsonRootObject.toString();
+
+                OutputStream os = socket.getOutputStream();
+
+                try (PrintWriter socketWriter = new PrintWriter(os, true))
+                {
+                    socketWriter.println(message);
+
+                    JsonReader reader = Json.createReader(socket.getInputStream());
+                    JsonObject object = reader.readObject();
+
+                    String packetType = object.getString("PacketType");
+                    System.out.println(packetType);
+
+                    if (packetType.equals("RegisteredInvalidTollEvent"))
+                    {
+                        success = true;
+                    }
+                }
             }
-          
-             socketWriter.close();
-             socket.close();
         }
         catch (IOException e)
         {
@@ -322,55 +341,34 @@ public class Client
         }
         return success;
     }
-    
+
+    // Request the Server to close the current session
     private void closeSession()
     {
         try
         {
-            Socket socket = new Socket("localhost", 50000);
-            
-            JsonBuilderFactory factory = Json.createBuilderFactory(null);
+            try (Socket socket = new Socket("localhost", 50000))
+            {
+                JsonBuilderFactory factory = Json.createBuilderFactory(null);
 
-            JsonObject jsonRootObject
-                    = Json.createObjectBuilder()
-                            .add("PacketType", "Close")
-                            .build();
+                JsonObject jsonRootObject
+                        = Json.createObjectBuilder()
+                                .add("PacketType", "Close")
+                                .build();
 
-            String message = jsonRootObject.toString();
-            
-            
-            OutputStream os = socket.getOutputStream();
+                String message = jsonRootObject.toString();
 
-            PrintWriter socketWriter = new PrintWriter(os, true);// true=> auto flush buffers
-            socketWriter.println(message);  // write command to socket
-            
-            
-             socketWriter.close();
-             socket.close();
+                OutputStream os = socket.getOutputStream();
+
+                try (PrintWriter socketWriter = new PrintWriter(os, true))
+                {
+                    socketWriter.println(message);
+                }
+            }
         }
         catch (IOException e)
         {
             System.out.println("Client message: IOException: " + e);
         }
-        
-    }
-    
-    
-    
-    
-
-    private void printMenu(String menuHeading, ArrayList<String> menu)
-    {
-        System.out.println(menuHeading);
-        for (int i = 0; i < menu.size(); i++)
-        {
-            System.out.println((i+1) + ". " + menu.get(i));
-        }
-    }
-
-    private void backToMenu()
-    {
-        System.out.print("\nPress 'enter' to return to menu ");
-        String temp = kb.nextLine();
     }
 }
