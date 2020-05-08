@@ -1,8 +1,9 @@
 CREATE TABLE IF NOT EXISTS `toll_event` (
   `toll_event_id` int NOT NULL AUTO_INCREMENT,
-  `vehicle_registration` varchar(50) NOT NULL,
+  `vehicle_registration` varchar(20) NOT NULL,
   `image_id` bigint NOT NULL,
   `timestamp` timestamp(3) NOT NULL,
+  `billing_status` ENUM('Incomplete', 'Complete') DEFAULT 'Incomplete' NOT NULL,
   PRIMARY KEY (`toll_event_id`),
   CONSTRAINT UC_toll_event UNIQUE (`vehicle_registration`, `image_id`, `timestamp`)
 );
