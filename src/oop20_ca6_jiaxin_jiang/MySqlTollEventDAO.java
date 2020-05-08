@@ -6,118 +6,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 
 public class MySqlTollEventDAO extends MySqlDAO implements TollEventDAOInterface
 {
-
-    @Override
-    public boolean insertVehicleReg(String reg) throws DAOException
-    {
-        Connection con = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-
-        boolean success = false;
-
-        try
-        {
-            con = this.getConnection();
-
-            String query = "INSERT IGNORE INTO vehicles (Reg) VALUES (?)";
-            ps = con.prepareStatement(query);
-
-            ps.setString(1, reg);
-
-            success = ps.executeUpdate() == 1;
-        }
-        catch (SQLException e)
-        {
-            throw new DAOException("insertVehicleReg() " + e.getMessage());
-        }
-        finally
-        {
-            try
-            {
-                if (rs != null)
-                {
-                    rs.close();
-                }
-                if (ps != null)
-                {
-                    ps.close();
-                }
-                if (con != null)
-                {
-                    freeConnection(con);
-                }
-            }
-            catch (SQLException e)
-            {
-                throw new DAOException("insertVehicleReg() " + e.getMessage());
-            }
-        }
-        return success;
-    }
-
-    @Override
-    public Set<String> createVehicleLookUpTable() throws DAOException
-    {
-        Connection con = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-
-        Set<String> lookUpTable = new HashSet();
-
-        try
-        {
-            con = this.getConnection();
-
-            String query = "SELECT * FROM vehicles";
-            ps = con.prepareStatement(query);
-
-            rs = ps.executeQuery();
-
-            while (rs.next())
-            {
-                String reg = rs.getString("Reg");
-                lookUpTable.add(reg);
-            }
-        }
-        catch (SQLException e)
-        {
-            throw new DAOException("createVehicleLookUpTable() " + e.getMessage());
-        }
-        finally
-        {
-            try
-            {
-                if (rs != null)
-                {
-                    rs.close();
-                }
-                if (ps != null)
-                {
-                    ps.close();
-                }
-                if (con != null)
-                {
-                    freeConnection(con);
-                }
-            }
-            catch (SQLException e)
-            {
-                throw new DAOException("createVehicleLookUpTable() " + e.getMessage());
-            }
-        }
-        return lookUpTable;
-    }
 
     @Override
     public boolean insertTollEvent(String reg, long imageId, String timestamp) throws DAOException
@@ -175,40 +68,36 @@ public class MySqlTollEventDAO extends MySqlDAO implements TollEventDAOInterface
     }
 
     @Override
-    public List<TollEvent> getAllTollEvents() throws DAOException
+    public Set<String> getAllCustomersWithIncompleteBilling() throws DAOException
     {
         Connection con = null;
         PreparedStatement ps = null;
         ResultSet rs = null;
 
-        List<TollEvent> tList = new ArrayList();
+        Set<String> customerSet = new HashSet();
 
         try
         {
             con = this.getConnection();
 
-            String query = "SELECT * FROM toll_event ORDER BY timestamp";
+            String query = "SELECT customer_name FROM toll_event "
+                    + "NATURAL JOIN customer_vehicle "
+                    + "NATURAL JOIN customer "
+                    + "NATURAL JOIN vehicle "
+                    + "WHERE billing_status = 'Incomplete'";
             ps = con.prepareStatement(query);
 
             rs = ps.executeQuery();
 
             while (rs.next())
             {
-                String reg = rs.getString("vehicle_registration");
-                long imageId = rs.getLong("image_id");
-
-                Timestamp ts = rs.getTimestamp("timestamp");
-                Instant inst = ts.toInstant();
-                String dateTime = inst.toString();
-
-                TollEvent t = new TollEvent(reg, imageId, dateTime);
-
-                tList.add(t);
+                String customerName = rs.getString("customer_name").toUpperCase();
+                customerSet.add(customerName);
             }
         }
         catch (SQLException e)
         {
-            throw new DAOException("getAllTollEvents() " + e.getMessage());
+            throw new DAOException("getAllCustomersWithIncompleteBilling() " + e.getMessage());
         }
         finally
         {
@@ -229,49 +118,40 @@ public class MySqlTollEventDAO extends MySqlDAO implements TollEventDAOInterface
             }
             catch (SQLException e)
             {
-                throw new DAOException("getAllTollEvents() " + e.getMessage());
+                throw new DAOException("getAllCustomersWithIncompleteBilling() " + e.getMessage());
             }
         }
-        return tList;
+        return customerSet;
     }
 
     @Override
-    public List<TollEvent> getAllTollEventsWithReg(String registration) throws DAOException
+    public boolean findCustomer(String customerName) throws DAOException
     {
         Connection con = null;
         PreparedStatement ps = null;
         ResultSet rs = null;
 
-        List<TollEvent> tList = new ArrayList();
+        boolean found = false;
 
         try
         {
             con = this.getConnection();
 
-            String query = "SELECT * FROM toll_event WHERE vehicle_registration = ? ORDER BY timestamp";
+            String query = "SELECT customer_name FROM customer WHERE customer_name = ?";
             ps = con.prepareStatement(query);
 
-            ps.setString(1, registration);
+            ps.setString(1, customerName);
 
             rs = ps.executeQuery();
 
-            while (rs.next())
+            if (rs.next())
             {
-                String reg = rs.getString("vehicle_registration");
-                long imageId = rs.getLong("image_id");
-
-                Timestamp ts = rs.getTimestamp("timestamp");
-                Instant inst = ts.toInstant();
-                String dateTime = inst.toString();
-
-                TollEvent t = new TollEvent(reg, imageId, dateTime);
-
-                tList.add(t);
+                found = true;
             }
         }
         catch (SQLException e)
         {
-            throw new DAOException("getAllTollEventsWithReg() " + e.getMessage());
+            throw new DAOException("findCustomer() " + e.getMessage());
         }
         finally
         {
@@ -292,261 +172,12 @@ public class MySqlTollEventDAO extends MySqlDAO implements TollEventDAOInterface
             }
             catch (SQLException e)
             {
-                throw new DAOException("getAllTollEventsWithReg() " + e.getMessage());
+                throw new DAOException("findCustomer() " + e.getMessage());
             }
         }
-        return tList;
+        return found;
     }
 
-    @Override
-    public List<TollEvent> getAllTollEventsSinceDateTime(String timestamp) throws DAOException
-    {
-        Connection con = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-
-        List<TollEvent> tList = new ArrayList();
-
-        try
-        {
-            con = this.getConnection();
-
-            String query = "SELECT * FROM toll_event WHERE timestamp > ? ORDER BY timestamp";
-            ps = con.prepareStatement(query);
-
-            ps.setString(1, timestamp);
-
-            rs = ps.executeQuery();
-
-            while (rs.next())
-            {
-                String reg = rs.getString("vehicle_registration");
-                long imageId = rs.getLong("image_id");
-
-                Timestamp ts = rs.getTimestamp("timestamp");
-                Instant inst = ts.toInstant();
-                String dateTime = inst.toString();
-
-                TollEvent t = new TollEvent(reg, imageId, dateTime);
-
-                tList.add(t);
-            }
-        }
-        catch (SQLException e)
-        {
-            throw new DAOException("getAllTollEventsSinceDateTime() " + e.getMessage());
-        }
-        finally
-        {
-            try
-            {
-                if (rs != null)
-                {
-                    rs.close();
-                }
-                if (ps != null)
-                {
-                    ps.close();
-                }
-                if (con != null)
-                {
-                    freeConnection(con);
-                }
-            }
-            catch (SQLException e)
-            {
-                throw new DAOException("getAllTollEventsSinceDateTime() " + e.getMessage());
-            }
-        }
-        return tList;
-    }
-
-    @Override
-    public List<TollEvent> getAllTollEventsBetweenDateTimes(String timestamp1, String timestamp2) throws DAOException
-    {
-        Connection con = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-
-        List<TollEvent> tList = new ArrayList();
-
-        try
-        {
-            con = this.getConnection();
-
-            String query = "SELECT * FROM toll_event WHERE timestamp BETWEEN ? AND ? ORDER BY timestamp";
-            ps = con.prepareStatement(query);
-
-            ps.setString(1, timestamp1);
-            ps.setString(2, timestamp2);
-
-            rs = ps.executeQuery();
-
-            while (rs.next())
-            {
-                String reg = rs.getString("vehicle_registration");
-                long imageId = rs.getLong("image_id");
-
-                Timestamp ts = rs.getTimestamp("timestamp");
-                Instant inst = ts.toInstant();
-                String dateTime = inst.toString();
-
-                TollEvent t = new TollEvent(reg, imageId, dateTime);
-
-                tList.add(t);
-            }
-        }
-        catch (SQLException e)
-        {
-            throw new DAOException("getAllTollEventsBetweenDateTimes() " + e.getMessage());
-        }
-        finally
-        {
-            try
-            {
-                if (rs != null)
-                {
-                    rs.close();
-                }
-                if (ps != null)
-                {
-                    ps.close();
-                }
-                if (con != null)
-                {
-                    freeConnection(con);
-                }
-            }
-            catch (SQLException e)
-            {
-                throw new DAOException("getAllTollEventsBetweenDateTimes() " + e.getMessage());
-            }
-        }
-        return tList;
-    }
-
-    @Override
-    public Set<String> getAllRegFromToll() throws DAOException
-    {
-        Connection con = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-
-        Set<String> regSet = new TreeSet();
-
-        try
-        {
-            con = this.getConnection();
-
-            String query = "SELECT DISTINCT vehicle_registration FROM toll_event";
-            ps = con.prepareStatement(query);
-
-            rs = ps.executeQuery();
-
-            while (rs.next())
-            {
-                String reg = rs.getString("vehicle_registration");
-                regSet.add(reg);
-            }
-        }
-        catch (SQLException e)
-        {
-            throw new DAOException("getAllRegFromToll() " + e.getMessage());
-        }
-        finally
-        {
-            try
-            {
-                if (rs != null)
-                {
-                    rs.close();
-                }
-                if (ps != null)
-                {
-                    ps.close();
-                }
-                if (con != null)
-                {
-                    freeConnection(con);
-                }
-            }
-            catch (SQLException e)
-            {
-                throw new DAOException("getAllRegFromToll() " + e.getMessage());
-            }
-        }
-        return regSet;
-    }
-
-    @Override
-    public Map<String, ArrayList<TollEvent>> getAllTollEventsAsMap() throws DAOException
-    {
-        Connection con = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-
-        Map<String, ArrayList<TollEvent>> tollEventMap = new HashMap();
-
-        try
-        {
-            con = this.getConnection();
-
-            String query = "SELECT vehicle_registration, image_id, timestamp FROM toll_event";
-            ps = con.prepareStatement(query);
-
-            rs = ps.executeQuery();
-
-            while (rs.next())
-            {
-                String reg = rs.getString("vehicle_registration");
-                long imageId = rs.getLong("image_id");
-
-                Timestamp ts = rs.getTimestamp("timestamp");
-                Instant inst = ts.toInstant();
-                String dateTime = inst.toString();
-
-                TollEvent t = new TollEvent(reg, imageId, dateTime);
-
-                ArrayList<TollEvent> tList = tollEventMap.get(reg);
-
-                if (tList == null)
-                {
-                    tList = new ArrayList();
-                }
-
-                tList.add(t);
-                tollEventMap.put(reg, tList);
-            }
-        }
-        catch (SQLException e)
-        {
-            throw new DAOException("getAllTollEventsAsMap() " + e.getMessage());
-        }
-        finally
-        {
-            try
-            {
-                if (rs != null)
-                {
-                    rs.close();
-                }
-                if (ps != null)
-                {
-                    ps.close();
-                }
-                if (con != null)
-                {
-                    freeConnection(con);
-                }
-            }
-            catch (SQLException e)
-            {
-                throw new DAOException("getAllTollEventsAsMap() " + e.getMessage());
-            }
-        }
-        return tollEventMap;
-    }
-    
     @Override
     public double generateBill(String customerName) throws DAOException
     {
@@ -560,14 +191,14 @@ public class MySqlTollEventDAO extends MySqlDAO implements TollEventDAOInterface
         {
             con = this.getConnection();
 
-            String query = "SELECT SUM(cost) AS bill FROM toll_event " +
-                           "NATURAL JOIN customer_vehicle " +
-                           "NATURAL JOIN customer " +
-                           "NATURAL JOIN vehicle " +
-                           "NATURAL JOIN vehicle_type_cost " +
-                           "WHERE customer_name = ? " +
-                           "AND timestamp BETWEEN SUBDATE(CURDATE(), INTERVAL 1 MONTH) " +
-                           "AND NOW();";
+            String query = "SELECT SUM(cost) AS bill FROM toll_event "
+                    + "NATURAL JOIN customer_vehicle "
+                    + "NATURAL JOIN customer "
+                    + "NATURAL JOIN vehicle "
+                    + "NATURAL JOIN vehicle_type_cost "
+                    + "WHERE customer_name = ? "
+                    + "AND timestamp BETWEEN SUBDATE(CURDATE(), INTERVAL 3 MONTH) "
+                    + "AND NOW()";
             ps = con.prepareStatement(query);
 
             ps.setString(1, customerName);
@@ -606,5 +237,62 @@ public class MySqlTollEventDAO extends MySqlDAO implements TollEventDAOInterface
             }
         }
         return bill;
+    }
+
+    @Override
+    public boolean insertBillingStatus(String status, String customerName) throws DAOException
+    {
+        Connection con = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+
+        boolean success = false;
+
+        try
+        {
+            con = this.getConnection();
+
+            String query = "UPDATE toll_event "
+                    + "SET billing_status = ? "
+                    + "WHERE vehicle_registration IN "
+                    + "(SELECT vehicle_registration FROM toll_event "
+                    + "NATURAL JOIN customer_vehicle "
+                    + "NATURAL JOIN customer "
+                    + "NATURAL JOIN vehicle "
+                    + "WHERE customer_name = ?)";
+            ps = con.prepareStatement(query);
+
+            ps.setString(1, status);
+            ps.setString(2, customerName);
+
+            success = ps.executeUpdate() >= 1;
+        }
+        catch (SQLException e)
+        {
+            throw new DAOException("insertBillingStatus() " + e.getMessage());
+        }
+        finally
+        {
+            try
+            {
+                if (rs != null)
+                {
+                    rs.close();
+                }
+                if (ps != null)
+                {
+                    ps.close();
+                }
+                if (con != null)
+                {
+                    freeConnection(con);
+                }
+            }
+            catch (SQLException e)
+            {
+                throw new DAOException("insertBillingStatus() " + e.getMessage());
+            }
+        }
+        return success;
     }
 }
